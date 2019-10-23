@@ -118,6 +118,7 @@ class Solution:
 # --- TESTS ---
 datetime_format = "%Y-%m-%d %H:%M:%S"
 
+
 def get_record_ids(records: T.List[LogRecord]) -> T.List[str]:
     return [record.id for record in records]
 
@@ -135,6 +136,25 @@ def test_with_attribution_simple():
             created_at=datetime.strptime("2019-10-01 08:00:00", datetime_format),
             location="https://shop.com",
             referer="https://referal.ours.com/?ref=123hexcode"
+        )
+    ]
+
+    assert get_record_ids(Solution.with_attribution_approach(input_data)) == ["1"]
+
+
+def test_with_attribution_wrong_init_order():
+    input_data = [
+        LogRecord(
+            id="1",
+            created_at=datetime.strptime("2019-10-01 08:00:00", datetime_format),
+            location="https://shop.com",
+            referer="https://referal.ours.com/?ref=123hexcode"
+        ),
+        LogRecord(
+            id="1",
+            created_at=datetime.strptime("2019-10-01 09:00:00", datetime_format),
+            location=SALE_LOCATION,
+            referer=None
         )
     ]
 
@@ -168,18 +188,6 @@ def test_with_attribution_multisale_one_within_attribution_window():
 
 def test_with_attribution_competitor_wins():
     input_data = [
-        LogRecord(
-            id="1",
-            created_at=datetime.strptime("2019-10-02 09:00:00", datetime_format),
-            location="https://shop.com",
-            referer="https://referal.ours.com/?ref=123hexcode"
-        ),
-        LogRecord(
-            id="2",
-            created_at=datetime.strptime("2019-10-02 08:20:00", datetime_format),
-            location=SALE_LOCATION,
-            referer="https://shop.com/cart"
-        ),
         LogRecord(
             id="1",
             created_at=datetime.strptime("2019-10-02 08:00:00", datetime_format),
@@ -234,5 +242,5 @@ if __name__ == '__main__':
     with open("logs.json", "r") as f:
         records = deserialize_json(json.load(f))
 
-    for sale in Solution.with_attribution_approach(records):
-        print(sale)
+    for our_sale in Solution.with_attribution_approach(records):
+        print(our_sale)
