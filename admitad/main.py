@@ -1,3 +1,55 @@
+"""
+Условие задания:
+
+Пользователи посещают сайт магазина Shop. Они могут приходить из поисковиков (органический трафик),
+приходить по партнерским ссылкам нескольких кэшбек-сервисов: нашего (Ours) и других (Theirs1, Theirs2).
+
+Примеры логов в БД сервиса Ours, которые собираются скриптом со всех страниц сайта магазина:
+1) Органический переход клиента в магазин
+{
+	"client_id": "user15",
+"User-Agent": "Firefox 59",
+	"document.location": "https://shop.com/products/?id=2",
+	"document.referer": "https://yandex.ru/search/?q=купить+котика",
+	"date": "2018-04-03T07:59:13.286000Z"
+}
+
+2) Переход клиента в магазин по партнерской ссылке кэшбек-сервиса
+{
+	"client_id": "user15",
+	"User-Agent": "Firefox 59",
+	"document.location": "https://shop.com/products/id?=2",
+	"document.referer": "https://referal.ours.com/?ref=123hexcode",
+	"date": "2018-04-04T08:30:14.104000Z"
+}
+
+{
+	"client_id": "user15",
+	"User-Agent": "Firefox 59",
+	"document.location": "https://shop.com/products/id?=2",
+	"document.referer": "https://ad.theirs1.com/?src=q1w2e3r4",
+	"date": "2018-04-04T08:45:14.384000Z"
+}
+
+3) Внутренний переход клиента в магазине
+{
+	"client_id": "user15",
+	"User-Agent": "Firefox 59",
+	"document.location": "https://shop.com/checkout",
+	"document.referer": "https://shop.com/products/id?=2",
+	"date": "2018-04-04T08:59:16.222000Z"
+}
+
+Магазин Shop платит кэшбек-сервисам за клиентов, которые перешли по их ссылке, оплатили товар и в конце
+попали на страницу https://shop.com/checkout (“Спасибо за заказ”). Комиссия выплачивается
+по принципу “выигрывает последний кэшбек-сервис, после перехода по партнерской ссылке которого клиент купил товар”.
+
+Сервис Ours хочет по своим логам находить клиентов, которые совершили покупку именно благодаря ему.
+Нужно написать программу, которая ищет победившие партнерские ссылки сервиса Ours.
+Учесть различные сценарии поведения клиента на сайте.
+
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 import re
@@ -32,7 +84,7 @@ def deserialize_json(logs: T.List[T.Dict]) -> T.List[LogRecord]:
 
 def handle_ref_link(referer: str) -> (bool, bool):
     """
-    Check, that ref belong to us or our competitor
+    Check that ref belong to us or our competitor
 
     :param referer: http referer string
     :return: is_affiliate_link, is_our_link - tuple of flags
@@ -45,9 +97,9 @@ def handle_ref_link(referer: str) -> (bool, bool):
         return True, True
 
     # --- Handle competitor domains ---
-    concurrent_domains = {"theirs1.com"}
+    competitor_domains = {"theirs1.com"}
     if re.compile(basic_pattern.format("|".join(
-            [re.escape(domain) for domain in concurrent_domains]
+            [re.escape(domain) for domain in competitor_domains]
     ))).search(referer):
         return True, False
 
@@ -98,19 +150,18 @@ class Solution:
             if record.referer is not None:
                 is_affiliate_link, is_our_link = handle_ref_link(record.referer)
 
-                if is_affiliate_link:
-                    if sales_candidates.get(record.id):
-                        #  delete from sales cause log_records is sorted by time and in any way
-                        #  this sales could not belong to us
-                        sales: T.List[int] = sales_candidates.pop(record.id)
+                if is_affiliate_link and sales_candidates.get(record.id):
+                    #  delete from sales cause log_records is sorted by time and in any way
+                    #  this sales could not belong to us
+                    sales: T.List[int] = sales_candidates.pop(record.id)
 
-                        # if ref is ours - check that we deal them within attribution window
-                        if is_our_link:
-                            for sale_index in sales:
-                                seconds_diff = (log_records[sale_index].created_at - record.created_at).total_seconds()
+                    # if ref is ours - check that we deal them within attribution window
+                    if is_our_link:
+                        for sale_index in sales:
+                            seconds_diff = (log_records[sale_index].created_at - record.created_at).total_seconds()
 
-                                if seconds_diff < ATTRIBUTION_WINDOW * 3600:
-                                    result.append(log_records[sale_index])
+                            if seconds_diff < ATTRIBUTION_WINDOW * 3600:
+                                result.append(log_records[sale_index])
 
         return result
 
