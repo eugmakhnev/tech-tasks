@@ -33,7 +33,21 @@ Stdin с четырьми целыми числами, разделенными 
 Результат: NO
 """
 from lib import will_kangaroos_collide, Kangaroo
+import sys
 
 if __name__ == '__main__':
-    print(will_kangaroos_collide(Kangaroo(8, 2), Kangaroo(5, 3)))
-    print(will_kangaroos_collide(Kangaroo(0, 2), Kangaroo(5, 3)))
+    args = sys.argv[1:]
+
+    if len(args) != 4:
+        raise ValueError("Must be 4 arguments!")
+
+    for arg in args:
+        if not -10000 < int(arg) < 10000:
+            raise ValueError("Values must be in range - 10,000 : 10,000")
+
+    result = will_kangaroos_collide(
+        Kangaroo(int(args[0]), int(args[1])),
+        Kangaroo(int(args[2]), int(args[3]))
+    )
+
+    print("YES" if result is True else "NO")
