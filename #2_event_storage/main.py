@@ -48,8 +48,9 @@
 
 Если необходимо, документ может быть расширен.
 """
-from lib import will_kangaroos_collide, Kangaroo
-import sys
+
+import uvicorn
+from app import app
 
 if __name__ == '__main__':
-    pass
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True, debug="true")
